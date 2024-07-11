@@ -1,0 +1,3 @@
+requests=>2.32.3
+jupyter-book=>1.0.2
+pyincore>=1.19.0
