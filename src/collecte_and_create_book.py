@@ -4,8 +4,26 @@ from zipfile import ZipFile
 from io import BytesIO
 import shutil
 import yaml
+import sys
+from contextlib import contextmanager
 
 ZENODO_API_URL = "https://zenodo.org/api/records"
+VERBOSE = False  # Set to True to enable detailed print statements
+
+
+@contextmanager
+def silent_stdout():
+    """Context manager to suppress stdout and stderr output."""
+    with open(os.devnull, 'w') as fnull:
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+        sys.stdout = fnull
+        sys.stderr = fnull
+        try:
+            yield
+        finally:
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
 
 
 def search_zenodo(query, community, page=1):
@@ -21,36 +39,45 @@ def search_zenodo(query, community, page=1):
     return response.json()
 
 
-def download_file(url, dest_folder):
+def download_file(url, dest_folder, filename=None):
     response = requests.get(url)
     response.raise_for_status()
 
     if 'zip' in url:
         with ZipFile(BytesIO(response.content)) as zip_file:
             zip_file.extractall(dest_folder)
+        if VERBOSE:
+            print(f"Extracted ZIP file from {url} to {dest_folder}")
     else:
-        file_name = os.path.join(dest_folder, url.split('/')[-1])
-        with open(file_name, 'wb') as file:
+        if filename is None:
+            filename = url.split('/')[-1]
+        file_path = os.path.join(dest_folder, filename)
+        with open(file_path, 'wb') as file:
             file.write(response.content)
+        if VERBOSE:
+            print(f"Downloaded file from {url} to {file_path}")
+        return file_path
 
 
 def extract_notebooks(source_folder, dest_folder):
     for root, dirs, files in os.walk(source_folder):
         for file in files:
-            if file.endswith('.ipynb'):
+            if file.endswith('.ipynb') or file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
                 source_path = os.path.join(root, file)
                 relative_path = os.path.relpath(source_path, source_folder)
                 dest_path = os.path.join(dest_folder, relative_path)
                 os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                 shutil.copy2(source_path, dest_path)
-                print(f"Copied notebook: {dest_path}")
+                if VERBOSE:
+                    print(f"Copied file: {dest_path}")
 
 
 def create_intro_file(notebooks_folder):
     intro_path = os.path.join(notebooks_folder, 'intro.md')
     with open(intro_path, 'w') as f:
         f.write("# Welcome to My Jupyter Book\n\nThis is the introduction.")
-    print(f"Created intro file at: {intro_path}")
+    if VERBOSE:
+        print(f"Created intro file at: {intro_path}")
 
 
 def create_config_file(book_folder):
@@ -62,7 +89,8 @@ def create_config_file(book_folder):
     config_path = os.path.join(book_folder, '_config.yml')
     with open(config_path, 'w') as config_file:
         yaml.dump(config_content, config_file)
-    print(f"Created config file at: {config_path}")
+    if VERBOSE:
+        print(f"Created config file at: {config_path}")
 
 
 def create_jupyter_book(source_folder, book_folder):
@@ -94,9 +122,16 @@ def create_jupyter_book(source_folder, book_folder):
     toc_path = os.path.join(book_folder, '_toc.yml')
     with open(toc_path, 'w') as toc_file:
         yaml.dump(toc_content, toc_file)
-    print(f"Created TOC file at: {toc_path}")
+    if VERBOSE:
+        print(f"Created TOC file at: {toc_path}")
 
-    os.system(f'jupyter-book build {book_folder}')
+    build_cmd = f'jupyter-book build {book_folder}'
+    if VERBOSE:
+        os.system(build_cmd)
+    else:
+        with silent_stdout():
+            os.system(build_cmd)
+
     print(f'Jupyter Book built at: {book_folder}')
 
 
@@ -107,10 +142,25 @@ def main(query, community, dest_folder='downloads', book_folder='generated_book_
         os.makedirs(book_folder)
 
     results = search_zenodo(query, community)
+    if VERBOSE:
+        print("Zenodo API Response:")
+        print(results)
+
     for record in results['hits']['hits']:
         files = record['files']
         for file in files:
-            download_file(file['links']['self'], dest_folder)
+            file_key = file['key']
+            file_url = file['links']['self']
+            if VERBOSE:
+                print(f"Processing file: {file_url}")
+                print(f"File size: {file.get('size', 'N/A')}, File key: {file_key}")
+            downloaded_file = download_file(file_url, dest_folder, filename=file_key)
+            if downloaded_file and downloaded_file.endswith('.ipynb'):
+                notebook_dest_path = os.path.join(book_folder, 'notebooks', os.path.basename(downloaded_file))
+                os.makedirs(os.path.dirname(notebook_dest_path), exist_ok=True)  # Ensure directory exists
+                shutil.copy2(downloaded_file, notebook_dest_path)
+                if VERBOSE:
+                    print(f"Copied notebook to: {notebook_dest_path}")
 
     create_jupyter_book(dest_folder, book_folder)
     print(f'Jupyter Book created at {book_folder}')
