@@ -163,3 +163,12 @@ cython_debug/
 
 # Apple metadata
 **/.DS_Store
+
+# Downloaded files
+src/downloads/*
+
+# Generated book files
+src/generated_book_files/*
+
+# idea folder
+.idea/
