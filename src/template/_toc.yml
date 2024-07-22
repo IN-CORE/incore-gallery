@@ -1,0 +1,17 @@
+# Table of contents
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: intro
+parts:
+- caption: Submit
+  chapters:
+  - file: submission_guidelines.md
+  - file: submission_process.md
+
+- caption: Volumes
+  chapters:
+  - file: volumes/volume1/volume1.md
+    sections:
+    - file: volumes/volume1/seaside-notebook/Seaside_testbed.ipynb
+    - file: volumes/volume1/notebook-test2/nb2.md
