@@ -43,7 +43,7 @@ Below are some recently published notebooks in the IN-CORE Gallery.
 <!-- :link-type: doc -->
 **Seaside Notebook**
 ^^^
-```{image} volumes/volume1/seaside-notebook/images/seaside-card-logo.png
+```{image} volumes/volume1/seaside-jupyter/images/Buildings.png
 :height: 100
 ```
 Notebook demonstrating IN-CORE multi-hazard building damage capabilities.

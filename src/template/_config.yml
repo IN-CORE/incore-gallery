@@ -2,22 +2,22 @@
 # Learn more at https://jupyterbook.org/customize/config.html
 
 title: IN-CORE Notebook Gallery
-author: Dylan Sanderson, Jong Lee, Yong Wook Kim
+author: Dylan Sanderson, Yong Wook Kim, Jong Lee
 logo: images/gallery-logo.png
 
 # Force re-execution of notebooks on each build.
 # See https://jupyterbook.org/content/execute.html
 execute:
-  execute_notebooks: force
+  execute_notebooks: "off"
 
 # Define the name of the latex output file for PDF builds
 latex:
   latex_documents:
     targetname: book.tex
 
-# Add a bibtex file so that we can create citations
-bibtex_bibfiles:
-  - references.bib
+# # Add a bibtex file so that we can create citations
+# bibtex_bibfiles:
+#   - references.bib
 
 # Information about where the book exists on the web
 repository:
