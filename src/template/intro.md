@@ -23,7 +23,7 @@ Welcome to the IN-CORE Notebook Gallery. This gallery showcases jupyter notebook
 :::{grid-item}
 :columns: 6
 :class: sd-fs-9
-To submit a notebook for publication in this gallery, please review the [submission guidelines](submission_guidelines.md) and [submission process](submission_process.md). 
+To submit a notebook for publication in this gallery, please review the [submission requirements and process](submission.md). 
 :::
 
 ::::

@@ -101,12 +101,8 @@ def copy_images_folder(book_folder, template_folder):
 copies the submission guidelines and process markdown files to 'generated_book_files/'
 """
 def copy_submission_guidelines(book_folder, template_folder):
-    template_submission_path = os.path.join(template_folder, "submission_guidelines.md")
-    book_submission_path = os.path.join(book_folder, "submission_guidelines.md")
-    shutil.copy(template_submission_path, book_submission_path)
-
-    template_submission_path = os.path.join(template_folder, "submission_process.md")
-    book_submission_path = os.path.join(book_folder, "submission_process.md")
+    template_submission_path = os.path.join(template_folder, "submission.md")
+    book_submission_path = os.path.join(book_folder, "submission.md")
     shutil.copy(template_submission_path, book_submission_path)
 
 def create_config_file(book_folder, template_folder):

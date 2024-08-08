@@ -6,8 +6,7 @@ root: intro
 parts:
 - caption: Submit
   chapters:
-  - file: submission_guidelines.md
-  - file: submission_process.md
+  - file: submission.md
 
 - caption: Volumes
   chapters:
