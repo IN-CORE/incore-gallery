@@ -80,8 +80,6 @@ def create_intro_file(book_folder, template_folder):
     intro_path = os.path.join(book_folder, "intro.md")
     intro_template = os.path.join(template_folder, "intro.md")
     
-    # TODO: unsure how to modify markdown file in python right now; need to revisit
-    print("unsure how to read markdown right now; need to revisit")
     shutil.copyfile(intro_template, intro_path)
 
     if VERBOSE:
