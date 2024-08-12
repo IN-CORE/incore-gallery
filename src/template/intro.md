@@ -28,7 +28,8 @@ To submit a notebook for publication in this gallery, please review the [submiss
 
 ::::
 
-# Recently published notebooks
+
+<!-- # Recently published notebooks
 
 Below are some recently published notebooks in the IN-CORE Gallery.
 
@@ -39,9 +40,9 @@ Below are some recently published notebooks in the IN-CORE Gallery.
 :margin: 3
 :class-body: text-center
 :class-header: bg-light text-center
-:link: volumes/volume1/seaside-notebook/Seaside_testbed.html
+:link: volumes/volume1/seaside-notebook/Seaside_testbed.html -->
 <!-- :link-type: doc -->
-**Seaside Notebook**
+<!-- **Seaside Notebook**
 ^^^
 ```{image} volumes/volume1/seaside-jupyter/images/Buildings.png
 :height: 100
@@ -51,7 +52,7 @@ Notebook demonstrating IN-CORE multi-hazard building damage capabilities.
 Explore {fas}`arrow-right`
 :::
 
-::::
+:::: -->
 
 
 # Acknowledgements
