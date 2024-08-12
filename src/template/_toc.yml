@@ -8,9 +8,21 @@ parts:
   chapters:
   - file: submission.md
 
-- caption: Volumes
+- caption: Notebooks
   chapters:
-  - file: volumes/volume1/volume1.md
-    sections:
-    - file: volumes/volume1/seaside-notebook/Seaside_testbed.ipynb
-    - file: volumes/volume1/notebook-test2/nb2.md
+
+
+
+### TOC with volumes
+# format: jb-book
+# root: intro
+# parts:
+# - caption: Submit
+#   chapters:
+#   - file: submission.md
+
+# - caption: Volumes
+#   chapters:
+#   - file: volumes/volume1/volume1.md
+#     sections:
+#     - file: volumes/volume1/seaside-notebook/Seaside_testbed.ipynb

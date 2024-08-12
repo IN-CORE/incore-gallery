@@ -71,10 +71,10 @@ def extract_notebooks(source_folder, dest_folder, template_folder=None):
                 if VERBOSE:
                     print(f"Copied file: {dest_path}")
 
-    # TODO: setup a volume.md file for each volume; currently copying existing volume1.md file
-    src = os.path.join(template_folder, "volumes", "volume1", "volume1.md")
-    dst = os.path.join(dest_folder, "volume1.md")
-    shutil.copyfile(src, dst)
+    # # TODO: setup a volume.md file for each volume; currently copying existing volume1.md file
+    # src = os.path.join(template_folder, "volumes", "volume1", "volume1.md")
+    # dst = os.path.join(dest_folder, "volume1.md")
+    # shutil.copyfile(src, dst)
 
 def create_intro_file(book_folder, template_folder):
     intro_path = os.path.join(book_folder, "intro.md")
@@ -114,16 +114,16 @@ def create_config_file(book_folder, template_folder):
     if VERBOSE:
         print(f"Created config file at: {config_path}")
 
-def create_toc_file(notebook_files, notebooks_folder, book_folder, template_folder, volume_num):
+def create_toc_file(notebook_files, notebooks_folder, book_folder, template_folder):
     toc_template_path = os.path.join(template_folder, "_toc.yml")
     with open(toc_template_path, 'r') as toc_file:
         toc_content = yaml.safe_load(toc_file)
 
-    # TODO: clean this up; need to figure out how to organize volumes in submissions
-    toc_content["parts"][1]["chapters"][0]["sections"] = [
-            {"file": f"volumes/volume{volume_num}/{os.path.relpath(nb, notebooks_folder).replace(os.sep, '/')}"}
+    toc_content["parts"][1]["chapters"] = [
+            {"file": f"notebooks/{os.path.relpath(nb, notebooks_folder).replace(os.sep, '/')}"}
             for nb in notebook_files
         ]
+
 
     toc_path = os.path.join(book_folder, '_toc.yml')
     with open(toc_path, 'w') as toc_file:
@@ -131,10 +131,10 @@ def create_toc_file(notebook_files, notebooks_folder, book_folder, template_fold
     if VERBOSE:
         print(f"Created TOC file at: {toc_path}")
 
-def create_jupyter_book(source_folder, book_folder, template_folder, volume_num=1):
+def create_jupyter_book(source_folder, book_folder, template_folder):
     if not os.path.exists(book_folder):
         os.system(f'jupyter-book create {book_folder}')
-    notebooks_folder = os.path.join(book_folder, 'volumes', 'volume{}' .format(volume_num))      # TODO need to figure out how to hand different volumes
+    notebooks_folder = os.path.join(book_folder, 'notebooks')
     os.makedirs(notebooks_folder, exist_ok=True)
 
     extract_notebooks(source_folder, notebooks_folder, template_folder)
@@ -150,7 +150,7 @@ def create_jupyter_book(source_folder, book_folder, template_folder, volume_num=
         print(f"Downloaded files: {os.listdir(source_folder)}")
         raise RuntimeError("No Jupyter notebooks found in the source folder.")
 
-    create_toc_file(notebook_files, notebooks_folder, book_folder, template_folder, volume_num=1)
+    create_toc_file(notebook_files, notebooks_folder, book_folder, template_folder)
 
     build_cmd = f'jupyter-book build {book_folder}'
     if VERBOSE:
@@ -162,7 +162,7 @@ def create_jupyter_book(source_folder, book_folder, template_folder, volume_num=
     print(f'Jupyter Book built at: {book_folder}')
 
 
-def main(query, community, dest_folder='downloads', book_folder='generated_book_files', template_folder="template", volume_num=1):
+def main(query, community, dest_folder='downloads', book_folder='generated_book_files', template_folder="template"):
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)
     if not os.path.exists(book_folder):
@@ -183,7 +183,7 @@ def main(query, community, dest_folder='downloads', book_folder='generated_book_
                 print(f"File size: {file.get('size', 'N/A')}, File key: {file_key}")
             downloaded_file = download_file(file_url, dest_folder, filename=file_key)
             if downloaded_file and downloaded_file.endswith('.ipynb'):
-                notebook_dest_path = os.path.join(book_folder, 'volumes', "volume{}" .format(volume_num), os.path.basename(downloaded_file))
+                notebook_dest_path = os.path.join(book_folder, 'notebooks', os.path.basename(downloaded_file))
                 os.makedirs(os.path.dirname(notebook_dest_path), exist_ok=True)  # Ensure directory exists
                 shutil.copy2(downloaded_file, notebook_dest_path)
                 if VERBOSE:
@@ -196,4 +196,4 @@ def main(query, community, dest_folder='downloads', book_folder='generated_book_
 if __name__ == "__main__":
     query = ""  # Your search query
     community = "in-core"  # Zenodo community ID
-    main(query, community, volume_num=1)
+    main(query, community)
