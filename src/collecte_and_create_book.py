@@ -9,7 +9,7 @@ from contextlib import contextmanager
 import nbformat
 
 ZENODO_API_URL = "https://zenodo.org/api/records"
-VERBOSE = True  # Set to True to enable detailed print statements
+VERBOSE = False  # Set to True to enable detailed print statements
 
 
 @contextmanager
