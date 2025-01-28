@@ -1,15 +1,15 @@
 import os
 import requests
-from zipfile import ZipFile
-from io import BytesIO
 import shutil
 import yaml
 import sys
+from zipfile import ZipFile
+from io import BytesIO
 from contextlib import contextmanager
 import nbformat
 
 ZENODO_API_URL = "https://zenodo.org/api/records"
-VERBOSE = False  # Set to True to enable detailed print statements
+VERBOSE = False  # Set to True for detailed logs
 
 
 @contextmanager
@@ -28,13 +28,8 @@ def silent_stdout():
 
 
 def search_zenodo(query, community, page=1):
-    params = {
-        'q': query,
-        'communities': community,
-        'page': page,
-        'size': 10,
-        'sort': 'mostrecent'
-    }
+    """Search Zenodo for records."""
+    params = {'q': query, 'communities': community, 'page': page, 'size': 10, 'sort': 'mostrecent'}
     response = requests.get(ZENODO_API_URL, params=params)
     response.raise_for_status()
     return response.json()
@@ -61,25 +56,11 @@ def download_file(url, dest_folder, filename=None):
         return file_path
 
 
-def extract_notebooks(source_folder, dest_folder):
-    for root, dirs, files in os.walk(source_folder):
-        for file in files:
-            if file.endswith('.ipynb') or file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                source_path = os.path.join(root, file)
-                relative_path = os.path.relpath(source_path, source_folder)
-                dest_path = os.path.join(dest_folder, relative_path)
-                if os.path.abspath(source_path) != os.path.abspath(dest_path):
-                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                    shutil.copy2(source_path, dest_path)
-                    if VERBOSE:
-                        print(f"Copied file: {dest_path}")
-
-
 def add_original_url_to_notebook(notebook_path, original_url):
+    """Insert a markdown cell with the original URL in a notebook."""
     with open(notebook_path, 'r', encoding='utf-8') as f:
         nb = nbformat.read(f, as_version=4)
 
-    # Add a markdown cell with the original URL at the beginning
     markdown_cell = nbformat.v4.new_markdown_cell(
         f'<a href="{original_url}" target="_blank">View Original Notebook</a>')
     nb.cells.insert(0, markdown_cell)
@@ -91,76 +72,108 @@ def add_original_url_to_notebook(notebook_path, original_url):
         print(f"Added original URL to notebook: {notebook_path}")
 
 
-def create_intro_file(book_folder, template_folder):
-    intro_path = os.path.join(book_folder, "intro.md")
-    intro_template = os.path.join(template_folder, "intro.md")
+def copy_templates(book_folder, template_folder):
+    """Copy the entire content of template_folder to book_folder."""
+    if not os.path.exists(template_folder):
+        raise FileNotFoundError(f"Template folder '{template_folder}' does not exist.")
 
-    shutil.copyfile(intro_template, intro_path)
+    shutil.copytree(template_folder, book_folder, dirs_exist_ok=True)
 
     if VERBOSE:
-        print(f"Created intro file at: {intro_path}")
+        print(f"Copied contents of {template_folder} to {book_folder}")
 
 
-def copy_images_folder(book_folder, template_folder):
-    template_images_path = os.path.join(template_folder, "images")
-    book_images_path = os.path.join(book_folder, "images")
-    shutil.copytree(template_images_path, book_images_path, dirs_exist_ok=True)
+def copy_downloaded_notebooks(book_folder, download_folder):
+    """Copy downloaded notebooks into book folder while preserving structure."""
+    if not os.path.exists(download_folder):
+        raise FileNotFoundError(f"Zenodo download folder '{download_folder}' does not exist.")
 
+    shutil.copytree(download_folder, book_folder, dirs_exist_ok=True)
 
-def copy_submission_guidelines(book_folder, template_folder):
-    template_submission_path = os.path.join(template_folder, "submission.md")
-    book_submission_path = os.path.join(book_folder, "submission.md")
-    shutil.copy(template_submission_path, book_submission_path)
-
-
-def create_config_file(book_folder, template_folder):
-    config_template_path = os.path.join(template_folder, "_config.yml")
-    with open(config_template_path, 'r') as config_file:
-        config_content = yaml.safe_load(config_file)
-
-    config_path = os.path.join(book_folder, '_config.yml')
-    with open(config_path, 'w') as config_file:
-        yaml.dump(config_content, config_file)
     if VERBOSE:
-        print(f"Created config file at: {config_path}")
+        print(f"Copied contents of {download_folder} to {book_folder}")
 
 
-def create_toc_file(notebook_files, notebooks_folder, book_folder, template_folder):
-    toc_template_path = os.path.join(template_folder, "_toc.yml")
-    with open(toc_template_path, 'r') as toc_file:
-        toc_content = yaml.safe_load(toc_file)
+def process_path(item_path, base_path):
+    """Recursively process a file or folder and return a structured TOC entry."""
+    if os.path.basename(item_path).startswith('.'):
+        return None  # Ignore hidden files and folders
 
-    toc_content["parts"][1]["chapters"] = [
-        {"file": f"notebooks/{os.path.relpath(nb, notebooks_folder).replace(os.sep, '/')}"}
-        for nb in notebook_files
-    ]
+    if os.path.isfile(item_path) and (item_path.endswith('.md') or item_path.endswith('.ipynb')):
+        # Return file path relative to base path
+        rel_path = os.path.relpath(item_path, base_path).replace(os.sep, '/')
+        return {"file": rel_path}  # Root file
 
-    toc_path = os.path.join(book_folder, '_toc.yml')
+    elif os.path.isdir(item_path):
+        # Process folder recursively
+        root_file = None
+        folder_sections = []
+
+        for item in sorted(os.listdir(item_path)):
+            sub_item_path = os.path.join(item_path, item)
+
+            if os.path.isfile(sub_item_path) and (item.endswith('.md') or item.endswith('.ipynb')):
+                # Assign the first found .md or .ipynb as the "file" for the folder
+                if root_file is None:
+                    root_file = os.path.relpath(sub_item_path, base_path).replace(os.sep, '/')
+                else:
+                    folder_sections.append({"file": os.path.relpath(sub_item_path, base_path).replace(os.sep, '/')})
+            else:
+                sub_entry = process_path(sub_item_path, base_path)
+                if sub_entry:
+                    folder_sections.append(sub_entry)
+
+        if root_file:
+            return {"file": root_file, "sections": folder_sections} if folder_sections else {"file": root_file}
+
+    return None  # Ignore empty directories or non-md/ipynb files
+
+
+def create_toc_file(book_folder, index):
+    """Dynamically create a TOC by walking through index values (files/folders)."""
+
+    toc_path = os.path.join(book_folder, "_toc.yml")
+
+    # Load existing TOC or start fresh
+    if os.path.exists(toc_path):
+        with open(toc_path, 'r') as toc_file:
+            toc_structure = yaml.safe_load(toc_file)
+    else:
+        toc_structure = {
+            "format": "jb-book",
+            "root": "intro",
+            "parts": [
+                {"caption": "Submit", "chapters": [{"file": "submission.md"}]},
+                {"caption": "Published Notebooks", "chapters": []}
+            ]
+        }
+
+    if toc_structure["parts"][1]["chapters"] is None:
+        toc_structure["parts"][1]["chapters"] = []
+    published_notebooks_section = toc_structure["parts"][1]["chapters"]
+
+    for category, items in index.items():
+        category_sections = []
+        for item in items:
+            item_path = os.path.join(book_folder, item)
+            section_entry = process_path(item_path, book_folder)
+            if section_entry:
+                category_sections.append(section_entry)
+
+        if category_sections:
+            published_notebooks_section.append({"file": f"{category}.md", "sections": category_sections})
+
+    # Write updated TOC file
     with open(toc_path, 'w') as toc_file:
-        yaml.dump(toc_content, toc_file)
+        yaml.dump(toc_structure, toc_file, default_flow_style=False, sort_keys=False)
+
     if VERBOSE:
-        print(f"Created TOC file at: {toc_path}")
+        print(f"Updated TOC file at: {toc_path}")
 
 
-def create_jupyter_book(source_folder, book_folder, template_folder):
-    if not os.path.exists(book_folder):
-        os.system(f'jupyter-book create {book_folder}')
-    notebooks_folder = os.path.join(book_folder, 'notebooks')
-    os.makedirs(notebooks_folder, exist_ok=True)
-
-    # extract_notebooks(source_folder, notebooks_folder)
-    create_intro_file(book_folder, template_folder)
-    copy_images_folder(book_folder, template_folder)
-    copy_submission_guidelines(book_folder, template_folder)
-    create_config_file(book_folder, template_folder)
-
-    notebook_files = [os.path.join(dp, f) for dp, dn, fn in os.walk(notebooks_folder) for f in fn if
-                      f.endswith('.ipynb')]
-
-    if not notebook_files:
-        raise RuntimeError("No Jupyter notebooks found in the source folder.")
-
-    create_toc_file(notebook_files, notebooks_folder, book_folder, template_folder)
+def create_jupyter_book(book_folder, index):
+    """Build the Jupyter Book using the dynamically created TOC."""
+    create_toc_file(book_folder, index)
 
     build_cmd = f'jupyter-book build {book_folder}'
     if VERBOSE:
@@ -172,60 +185,52 @@ def create_jupyter_book(source_folder, book_folder, template_folder):
     print(f'Jupyter Book built at: {book_folder}')
 
 
-def main(query, community, dest_folder='downloads', book_folder='generated_book_files', template_folder="template"):
-    if not os.path.exists(dest_folder):
-        os.makedirs(dest_folder)
-    if not os.path.exists(book_folder):
-        os.makedirs(book_folder)
+def main(query, community, download_folder='downloads', book_folder='generated_book_files', template_folder="template"):
+    """Main function to handle Zenodo data download and book creation."""
+    os.makedirs(download_folder, exist_ok=True)
+    os.makedirs(book_folder, exist_ok=True)
 
     results = search_zenodo(query, community)
-    if VERBOSE:
-        print("Zenodo API Response:")
-        print(results)
-
-    processed_notebooks = set()
+    index = {"workshops": [], "tutorials": [], "notebooks": []}
 
     for record in results['hits']['hits']:
-        files = record['files']
-        original_url = record['links'].get('doi', record['links'].get('html', 'URL not available'))
-        for file in files:
-            file_key = file['key']
+        metadata = record.get("metadata", {})
+        original_url = metadata.get("doi", metadata.get("html", "URL not available"))
+
+        for file in record['files']:
             file_url = file['links']['self']
-            if VERBOSE:
-                print(f"Processing file: {file_url}")
-                print(f"File size: {file.get('size', 'N/A')}, File key: {file_key}")
-            downloaded_file = download_file(file_url, dest_folder, filename=file_key)
-            if downloaded_file and downloaded_file.endswith('.ipynb'):
-                notebook_dest_path = os.path.join(book_folder, 'notebooks', file_key)
-                os.makedirs(os.path.dirname(notebook_dest_path), exist_ok=True)  # Ensure directory exists
-                if notebook_dest_path not in processed_notebooks:
-                    shutil.copy2(downloaded_file, notebook_dest_path)
-                    add_original_url_to_notebook(notebook_dest_path, original_url)
-                    processed_notebooks.add(notebook_dest_path)
-            elif 'zip' in file_url:
-                zip_folder = os.path.join(dest_folder, file_key.replace('.zip', ''))
-                # extract_notebooks(downloaded_file, zip_folder)
-                for root, dirs, files in os.walk(zip_folder):
-                    for file in files:
-                        if file.endswith('.ipynb'):
-                            notebook_dest_path = os.path.join(book_folder, 'notebooks', file)
-                            extracted_notebook_path = os.path.join(zip_folder, file)
-                            os.makedirs(os.path.dirname(notebook_dest_path), exist_ok=True)  # Ensure directory exists
-                            if notebook_dest_path not in processed_notebooks:
-                                shutil.copy2(extracted_notebook_path, notebook_dest_path)
-                                add_original_url_to_notebook(notebook_dest_path, original_url)
-                                processed_notebooks.add(notebook_dest_path)
+            file_key = file['key']
+            fname = file_key[:-4] if file_key.lower().endswith('.zip') else file_key
+            downloaded_fname = download_file(file_url, download_folder, filename=fname)
+            keywords = metadata.get('keywords', [])
 
-    create_jupyter_book(book_folder, book_folder, template_folder)
+            # Determine category based on keywords
+            if 'workshop' in keywords:
+                index['workshops'].append(fname)
+            elif 'tutorial' in keywords:
+                index['tutorials'].append(fname)
+            else:
+                index['notebooks'].append(fname)
 
-    # Clean up downloads folder
-    shutil.rmtree(dest_folder)
-    os.makedirs(dest_folder)
+            # Add original URL to notebooks
+            if downloaded_fname.endswith('.ipynb'):
+                add_original_url_to_notebook(downloaded_fname, original_url)
+
+    # Copy everything to book folder
+    copy_templates(book_folder, template_folder)
+    copy_downloaded_notebooks(book_folder, download_folder)
+
+    # Create and build Jupyter Book
+    create_jupyter_book(book_folder, index)
+
+    # Cleanup downloads
+    shutil.rmtree(download_folder)
+    os.makedirs(download_folder)
 
     print(f'Jupyter Book created at {book_folder}')
 
 
 if __name__ == "__main__":
     query = ""  # Your search query
-    community = "in-core"  # Zenodo community ID
+    community = "in-core"
     main(query, community)
