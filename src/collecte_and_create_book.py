@@ -106,6 +106,30 @@ def copy_downloaded_notebooks(book_folder, download_folder):
         print(f"Copied contents of {download_folder} to {book_folder}")
 
 
+def create_placeholder_md(folder_path, root_files, base_path):
+    """Creates a markdown file with links to each root file's first cell title."""
+    folder_name = os.path.basename(folder_path)
+    placeholder_md_path = os.path.join(folder_path, f"{folder_name}.md")
+    links = []
+
+    for file in root_files:
+        file_path = os.path.join(base_path, file)
+        if file.endswith('.ipynb'):
+            title = get_ipynb_file_title(file_path)
+        elif file.endswith('.md'):
+            title = get_md_file_title(file_path)
+        else:
+            title = os.path.basename(file).replace("_", " ").title()
+        links.append(f"- [{title}]({os.path.basename(file_path)})")
+
+    with open(placeholder_md_path, 'w', encoding='utf-8') as f:
+        f.write(f"# {folder_name.title()}\n\n")
+        f.write("## Contents\n\n")
+        f.write("\n".join(links) + "\n")
+
+    return os.path.relpath(placeholder_md_path, base_path).replace(os.sep, '/')
+
+
 def process_path(item_path, base_path):
     """Recursively process a file or folder and return a structured TOC entry."""
     if os.path.basename(item_path).startswith('.'):
@@ -114,29 +138,35 @@ def process_path(item_path, base_path):
     if os.path.isfile(item_path) and (item_path.endswith('.md') or item_path.endswith('.ipynb')):
         # Return file path relative to base path
         rel_path = os.path.relpath(item_path, base_path).replace(os.sep, '/')
-        return {"file": rel_path}  # Root file
+        return {"file": rel_path}
 
     elif os.path.isdir(item_path):
         # Process folder recursively
-        root_file = None
+        root_files = []
         folder_sections = []
 
         for item in sorted(os.listdir(item_path)):
             sub_item_path = os.path.join(item_path, item)
 
             if os.path.isfile(sub_item_path) and (item.endswith('.md') or item.endswith('.ipynb')):
-                # Assign the first found .md or .ipynb as the "file" for the folder
-                if root_file is None:
-                    root_file = os.path.relpath(sub_item_path, base_path).replace(os.sep, '/')
-                else:
-                    folder_sections.append({"file": os.path.relpath(sub_item_path, base_path).replace(os.sep, '/')})
+                # Collect potential root files
+                root_files.append(os.path.relpath(sub_item_path, base_path).replace(os.sep, '/'))
             else:
                 sub_entry = process_path(sub_item_path, base_path)
                 if sub_entry:
                     folder_sections.append(sub_entry)
 
-        if root_file:
-            return {"file": root_file, "sections": folder_sections} if folder_sections else {"file": root_file}
+        # Decide how to structure the folder entry
+        if len(root_files) == 1:
+            # If exactly one root file, use it as the "file" and append sections
+            return {"file": root_files[0], "sections": folder_sections} if folder_sections else {"file": root_files[0]}
+        elif len(root_files) > 1:
+            # If multiple root files, create a placeholder markdown file with links
+            placeholder_md = create_placeholder_md(item_path, root_files, base_path)
+            return {"file": placeholder_md, "sections": [{"file": root} for root in root_files]}
+        else:
+            # No root files, just return sections (if any)
+            return folder_sections if folder_sections else None
 
     return None  # Ignore empty directories or non-md/ipynb files
 
