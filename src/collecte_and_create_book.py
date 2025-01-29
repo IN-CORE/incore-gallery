@@ -7,6 +7,7 @@ from zipfile import ZipFile
 from io import BytesIO
 from contextlib import contextmanager
 import nbformat
+import json
 
 ZENODO_API_URL = "https://zenodo.org/api/records"
 VERBOSE = False  # Set to True for detailed logs
@@ -182,9 +183,93 @@ def create_toc_file(book_folder, index):
         print(f"Updated TOC file at: {toc_path}")
 
 
+def get_ipynb_file_title(file_path):
+    """Extracts the title from a Jupyter Notebook or Markdown file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            notebook_data = json.load(f)
+        # Find the first markdown cell with a heading
+        for cell in notebook_data.get("cells", []):
+            if cell.get("cell_type") == "markdown" and cell.get("source"):
+                first_line = cell["source"][0].strip()
+                if first_line.startswith("#"):  # Looks like a title
+                    return first_line.lstrip("#").strip()
+    except Exception as e:
+        print(f"Error reading file {file_path}: {e}")
+
+    # Fallback to filename if no title is found
+    return os.path.basename(file_path).replace(".ipynb", "")
+
+
+def get_md_file_title(file_path):
+    """Extracts the title from a Jupyter Notebook or Markdown file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("#"):  # First heading is the title
+                    return line.lstrip("#").strip()
+
+    except Exception as e:
+        print(f"Error reading file {file_path}: {e}")
+
+    # Fallback to filename if no title is found
+    return os.path.basename(file_path).replace(".md", "").replace("_", " ").title()
+
+
+def update_category_md_files(book_folder, index, toc_file="_toc.yml"):
+    """Reads TOC and updates workshops.md, notebooks.md, and tutorials.md with child links."""
+
+    toc_path = os.path.join(book_folder, toc_file)
+
+    if not os.path.exists(toc_path):
+        print(f"TOC file not found: {toc_path}")
+        return
+
+    # Load TOC YAML
+    with open(toc_path, 'r', encoding='utf-8') as f:
+        toc_data = yaml.safe_load(f)
+
+    # Dynamically create categories from index keys
+    category_links = {category: [] for category in index.keys()}
+
+    for part in toc_data.get("parts", []):
+        for chapter in part.get("chapters", []):
+            category_file = chapter.get("file", "").replace(".md", "")
+            if category_file in category_links:  # Match category file
+                for section in chapter.get("sections", []):
+                    section_file = section["file"]
+                    if section_file.endswith(".md"):
+                        section_title = get_md_file_title(os.path.join(book_folder, section_file))
+                    elif section_file.endswith(".ipynb"):
+                        section_title = get_ipynb_file_title(os.path.join(book_folder, section_file))
+                    else:
+                        # fallback to just use filename
+                        section_title = os.path.basename(section_file).split(".")[0]
+                    category_links[category_file].append(f"- [{section_title}]({section_file})")
+
+    # Insert links into category .md files
+    for category, links in category_links.items():
+        category_md_path = os.path.join(book_folder, f"{category}.md")
+
+        if not os.path.exists(category_md_path):
+            continue  # Skip if the file doesn't exist
+
+        with open(category_md_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {category.title()}\n\n")
+            f.write("## Contents\n\n")
+            if links:
+                f.write("\n".join(links) + "\n")
+            else:
+                f.write("_No content available._\n")
+
+        print(f"Updated {category_md_path} with links to child sections.")
+
+
 def create_jupyter_book(book_folder, index):
     """Build the Jupyter Book using the dynamically created TOC."""
     create_toc_file(book_folder, index)
+    update_category_md_files(book_folder, index, toc_file="_toc.yml")
 
     build_cmd = f'jupyter-book build {book_folder}'
     if VERBOSE:
