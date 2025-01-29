@@ -314,7 +314,11 @@ def create_jupyter_book(book_folder, index):
 def main(query, community, download_folder='downloads', book_folder='generated_book_files', template_folder="template"):
     """Main function to handle Zenodo data download and book creation."""
     os.makedirs(download_folder, exist_ok=True)
-    os.makedirs(book_folder, exist_ok=True)
+
+    if os.path.exists(book_folder):
+        print(f"🔄 Rebuilding: Removing existing '{book_folder}'...")
+        shutil.rmtree(book_folder)  # Deletes the book folder
+    os.makedirs(book_folder, exist_ok=False)
 
     results = search_zenodo(query, community)
     index = {"workshops": [], "tutorials": [], "notebooks": []}
