@@ -42,6 +42,17 @@ def download_file(url, dest_folder, filename=None):
     if 'zip' in url:
         with ZipFile(BytesIO(response.content)) as zip_file:
             zip_file.extractall(dest_folder)
+
+        # Cleanup __MACOSX and .DS_Store
+        macosx_folder = os.path.join(dest_folder, "__MACOSX")
+        if os.path.exists(macosx_folder):
+            shutil.rmtree(macosx_folder)
+
+        for root, _, files in os.walk(dest_folder):
+            for file in files:
+                if file == ".DS_Store":
+                    os.remove(os.path.join(root, file))
+
         if VERBOSE:
             print(f"Extracted ZIP file from {url} to {dest_folder}")
         return dest_folder
