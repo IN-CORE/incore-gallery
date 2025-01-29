@@ -236,8 +236,8 @@ def main(query, community, download_folder='downloads', book_folder='generated_b
 
     # Cleanup downloads
     shutil.rmtree(download_folder)
-    os.makedirs(download_folder)
 
+    # print the location of the generated book
     print(f'Jupyter Book created at {book_folder}')
 
 
