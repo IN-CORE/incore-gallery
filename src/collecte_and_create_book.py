@@ -106,75 +106,10 @@ def copy_downloaded_notebooks(book_folder, download_folder):
         print(f"Copied contents of {download_folder} to {book_folder}")
 
 
-def create_placeholder_md(folder_path, root_files, base_path):
-    """Creates a markdown file with links to each root file's first cell title."""
-    folder_name = os.path.basename(folder_path)
-    placeholder_md_path = os.path.join(folder_path, f"{folder_name}.md")
-    links = []
-
-    for file in root_files:
-        file_path = os.path.join(base_path, file)
-        if file.endswith('.ipynb'):
-            title = get_ipynb_file_title(file_path)
-        elif file.endswith('.md'):
-            title = get_md_file_title(file_path)
-        else:
-            title = os.path.basename(file).replace("_", " ").title()
-        links.append(f"- [{title}]({os.path.basename(file_path)})")
-
-    with open(placeholder_md_path, 'w', encoding='utf-8') as f:
-        f.write(f"# {folder_name.title()}\n\n")
-        f.write("## Contents\n\n")
-        f.write("\n".join(links) + "\n")
-
-    return os.path.relpath(placeholder_md_path, base_path).replace(os.sep, '/')
-
-
-def process_path(item_path, base_path):
-    """Recursively process a file or folder and return a structured TOC entry."""
-    if os.path.basename(item_path).startswith('.'):
-        return None  # Ignore hidden files and folders
-
-    if os.path.isfile(item_path) and (item_path.endswith('.md') or item_path.endswith('.ipynb')):
-        # Return file path relative to base path
-        rel_path = os.path.relpath(item_path, base_path).replace(os.sep, '/')
-        return {"file": rel_path}
-
-    elif os.path.isdir(item_path):
-        # Process folder recursively
-        root_files = []
-        folder_sections = []
-
-        for item in sorted(os.listdir(item_path)):
-            sub_item_path = os.path.join(item_path, item)
-
-            if os.path.isfile(sub_item_path) and (item.endswith('.md') or item.endswith('.ipynb')):
-                # Collect potential root files
-                root_files.append(os.path.relpath(sub_item_path, base_path).replace(os.sep, '/'))
-            else:
-                sub_entry = process_path(sub_item_path, base_path)
-                if sub_entry:
-                    folder_sections.append(sub_entry)
-
-        # Decide how to structure the folder entry
-        if len(root_files) == 1:
-            # If exactly one root file, use it as the "file" and append sections
-            return {"file": root_files[0], "sections": folder_sections} if folder_sections else {"file": root_files[0]}
-        elif len(root_files) > 1:
-            # If multiple root files, create a placeholder markdown file with links
-            placeholder_md = create_placeholder_md(item_path, root_files, base_path)
-            return {"file": placeholder_md, "sections": [{"file": root} for root in root_files]}
-        else:
-            # No root files, just return sections (if any)
-            return folder_sections if folder_sections else None
-
-    return None  # Ignore empty directories or non-md/ipynb files
-
-
-def create_toc_file(book_folder, index):
+def create_toc_file_from_index_file(book_folder, index, index_file_name="index.yaml", toc_file="_toc.yml"):
     """Dynamically create a TOC by walking through index values (files/folders)."""
 
-    toc_path = os.path.join(book_folder, "_toc.yml")
+    toc_path = os.path.join(book_folder, toc_file)
 
     # Load existing TOC or start fresh
     if os.path.exists(toc_path):
@@ -197,10 +132,15 @@ def create_toc_file(book_folder, index):
     for category, items in index.items():
         category_sections = []
         for item in items:
-            item_path = os.path.join(book_folder, item)
-            section_entry = process_path(item_path, book_folder)
-            if section_entry:
-                category_sections.append(section_entry)
+            item_index_path = os.path.join(book_folder, item, index_file_name)
+            if not os.path.exists(item_index_path):
+                print(f"Index file not found: {item_index_path}")
+                continue
+            else:
+                # Load the index.yaml
+                with open(item_index_path, 'r', encoding='utf-8') as f:
+                    index_data = yaml.safe_load(f)
+                    category_sections.extend(index_data)
 
         if category_sections:
             published_notebooks_section.append({"file": f"{category}.md", "sections": category_sections})
@@ -271,6 +211,8 @@ def update_category_md_files(book_folder, index, toc_file="_toc.yml"):
                     section_file = section["file"]
                     if section_file.endswith(".md"):
                         section_title = get_md_file_title(os.path.join(book_folder, section_file))
+                    elif  os.path.splitext(section_file)[1] == "":
+                        section_title = get_md_file_title(os.path.join(book_folder, section_file+".md"))
                     elif section_file.endswith(".ipynb"):
                         section_title = get_ipynb_file_title(os.path.join(book_folder, section_file))
                     else:
@@ -298,7 +240,8 @@ def update_category_md_files(book_folder, index, toc_file="_toc.yml"):
 
 def create_jupyter_book(book_folder, index):
     """Build the Jupyter Book using the dynamically created TOC."""
-    create_toc_file(book_folder, index)
+    # create_toc_file(book_folder, index)
+    create_toc_file_from_index_file(book_folder, index)
     update_category_md_files(book_folder, index, toc_file="_toc.yml")
 
     build_cmd = f'jupyter-book build {book_folder}'
@@ -341,10 +284,6 @@ def main(query, community, download_folder='downloads', book_folder='generated_b
                 index['tutorials'].append(fname)
             else:
                 index['notebooks'].append(fname)
-
-            # Add original URL to notebooks
-            if downloaded_fname.endswith('.ipynb'):
-                add_original_url_to_notebook(downloaded_fname, original_url)
 
     # Copy everything to book folder
     copy_templates(book_folder, template_folder)
