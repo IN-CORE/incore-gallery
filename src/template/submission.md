@@ -5,7 +5,7 @@
 To ensure your notebook can be successfully published in the gallery, please adhere to the following guidelines:
 
 ### **1. File Format & Organization**
-Each submission must contain **A compressed `.zip` archive** containing:
+Each submission must contain **A compressed folder in `.zip` archive** containing:
 - The notebook(s) and/or markdown files.
 - All necessary code, data, and images.
 - **A valid `index.yaml` (see details below).**
@@ -28,7 +28,7 @@ Fill this part in Zenodo submission:
 
 ### **4. Required index File**
 **Your submission must include an `index.yaml` file** to define the structure. This file **organizes your content** into main sections and subsections. 
-The order of files in `index.yaml` will be respected** in the gallery.
+**The order of files in `index.yaml` will be respected** in the gallery.
 
 **Examples of Valid `index.yaml` Files** 
 **Single Notebook Submission**
@@ -87,12 +87,11 @@ Your **index.yaml** should define the structure of your content.
 ---
 
 ## **Summary**
-✔ **Notebooks must be standalone (`.ipynb`) or inside a `.zip`.**  
+✔ **Notebooks inside a folder and compressed to a `.zip` file.**  
 ✔ **Must include a `keyword` ("notebook", "workshop", or "tutorial").**  
 ✔ **Must contain `index.yaml` defining content structure.**  
 ✔ **Must specify package dependencies.**  
 ✔ **Upload to Zenodo with correct metadata fields: notebook, workshop, tutorial**
-✔ **The order of notebooks in `index.yaml` will be respected in the gallery.**  
 
 ---
 
