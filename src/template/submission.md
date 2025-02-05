@@ -36,15 +36,40 @@ Fill this part in Zenodo submission:
 - file: create_dataset/create_dataset.ipynb
 ```
 
-**Multiple Files with an Organized Index**
+**Multiple Files with an Organized Index Page**
 ```yaml
-- file: 20220131/agenda
+- file: 20220131/agenda.md
   sections:
     - file: 20220131/session1/session1-jupyter-intro.ipynb
     - file: 20220131/session2/session2-hazard.ipynb
     - file: 20220131/session3/session3-building_damage_analysis.ipynb
     - file: 20220131/session4/session4-damage-analyses-lifelines.ipynb
 ```
+
+In the above The example, the **`20220131/agenda.md` file** serves as an **index page** where you can include a 
+description, images, and links. Here is an example of the index page:
+```markdown
+# Title
+
+Descriptions.
+
+## **Sessions**
+
+1. **Introduction**
+   - [Session 1 - ](session1/session1-jupyter-intro.ipynb)
+
+2. **Next Session**
+   - [Session 2 - ](session2/session2-hazard.ipynb)
+
+3. **Next Session**
+   - [Session 3 - ](session3/session3-building_damage_analysis.ipynb)
+
+4. **Last Session**
+   - [Session 4 - ](session4/session4-damage-analyses-lifelines.ipynb)
+```
+
+📌 Important: If you list a table of contents in the index page manually, ensure it follows the order in your `index.yaml`, 
+otherwise, it will conflict with the generated Jupyter Book Table of Content.
 
 **Multiple Files (Flat Structure)**
 ```yaml
